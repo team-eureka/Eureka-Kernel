@@ -19,7 +19,7 @@ cross_compile=arm-unknown-linux-gnueabi-
 kernel_dir=source/eureka_kernel
 
 # Repo configuration
-kernel_repo="https://github.com/tchebb/eureka_linux.git -b stock"
+kernel_repo="https://github.com/tchebb/eureka_linux.git"
 toolchain_repo="https://code.google.com/p/chromecast-mirrored-source.prebuilt/"
 cctools_repo="https://github.com/tchebb/chromecast-tools.git"
 
