@@ -12,7 +12,6 @@ declare -a \
                     COPYING:./
                    )
 
-
 # Kernel configuration for Eureka
 kernel_config=eureka_stock_defconfig
 arch=arm
@@ -20,7 +19,9 @@ cross_compile=arm-unknown-linux-gnueabi-
 kernel_dir=source/eureka_kernel
 
 # Repo configuration
-source_repo="https://github.com/tchebb/eureka_linux.git -b stock"
+kernel_repo="https://github.com/tchebb/eureka_linux.git -b stock"
+toolchain_repo="https://code.google.com/p/chromecast-mirrored-source.prebuilt/"
+cctools_repo="https://github.com/tchebb/chromecast-tools.git"
 
 cpu_num=$(grep -c processor /proc/cpuinfo)
 
@@ -39,63 +40,60 @@ function build_kernel(){
     run_kernel_make $cross_compile $cpu_num $arch clean
     # Build kernel config
     run_kernel_make $cross_compile $cpu_num $arch $kernel_config
-    # Verify kernel config
-    # diff .config arch/arm/configs/$kernel_config
     # Build kernel
     run_kernel_make $cross_compile $cpu_num $arch zImage-dtb.berlin2cd-dongle
+	cd -
 }
 
-function create_kernel_pkg(){
-    local kernel_dir=$(readlink -f $1)
-    local pkg_dir=$(mktemp -d)
-    local wd=$(pwd)
-
-    for f in ${COPY_FILE_LIST[@]}
+function move_kernel(){
+	if [ ! -d "$PWD/output" ]; then
+		mkdir $PWD/output
+	fi
+	
+	for f in ${COPY_FILE_LIST[@]}
     do
       s=${f%%:*}
       d=${f##*:}
-      cp $kernel_dir/$s $pkg_dir/$d
+      cp $kernel_dir/$s $PWD/output/$d
     done
-
-    mkdir $wd/output
-    (cd $pkg_dir; mv ./* $wd/output/)
-    rm -fr $pkg_dir
 }
 
 # Kernel Src DL
-if [ ! -d "$kernel_dir" ]; then
+if [ ! -d "$PWD/$kernel_dir" ]; then
 	echo "kernel Directory $kernel_dir does not exist, downloading..."
-	mkdir -p $kernel_dir
-	git clone --progress $source_repo ./$kernel_dir
+	mkdir -p $PWD/$kernel_dir
+	git clone --progress $kernel_repo $PWD/$kernel_dir
 fi
 
 # Chromecast Toolchain DL
-if [ ! -x $(which arm-unknown-linux-gnueabi-gcc) ]; then
-	echo "Chromecast toolchain is missing, downloading..."
-	git clone --progress https://code.google.com/p/chromecast-mirrored-source.prebuilt/ ./source/
-	PATH="$PWD/source/toolchain/arm-unknown-linux-gnueabi-4.5.3-glibc/bin:$PATH"
+if [ -d "$PWD/source/chromecast-mirrored-source/" ] || [ ! -z "$(which arm-unknown-linux-gnueabi-gcc)" ] ; then
+	if [ -z "$(which arm-unknown-linux-gnueabi-gcc)" ] ; then
+		PATH="$PWD/source/chromecast-mirrored-source/toolchain/arm-unknown-linux-gnueabi-4.5.3-glibc/bin:$PATH"
+	fi
 else
-	toolchain_path=$(which arm-unknown-linux-gnueabi-gcc | awk -F "/arm-unknown-linux-gnueabi-gcc" '{print $1}')
-	PATH="$toolchain_path:$PATH"
+	echo "Chromecast toolchain is missing, downloading..."
+	git clone --progress $toolchain_repo $PWD/source/chromecast-mirrored-source/
+	PATH="$PWD/source/chromecast-mirrored-source/toolchain/arm-unknown-linux-gnueabi-4.5.3-glibc/bin:$PATH"
 fi
 
 # Chromecast-Tools DL
-if [ ! -x $(which cc-make-bootimg) ]; then
-	echo "Chromecast-Tools is missing, downloading..."
-	git clone --progress https://github.com/tchebb/chromecast-tools.git ./source/chromecast-tools/
-	gcc ./source/chromecast-tools/cc-mangle-bootimg.c -o ./source/chromecast-tools/cc-mangle-bootimg
-	chmod +x ./source/chromecast-tools/*
-	PATH="$PWD/source/chromecast-tools:$PATH"
+if [ -d "$PWD/source/chromecast-tools" ] || [ ! -z "$(which cc-make-bootimg)" ] ; then
+	if [ -z "$(which cc-make-bootimg)" ] ; then
+		PATH="$PWD/source/chromecast-tools:$PATH"
+	fi
 else
-	chromecasttools_path=$(which cc-make-bootimg | awk -F "/cc-make-bootimg" '{print $1}')
-	PATH="$chromecasttools_path:$PATH"
+	echo "Chromecast-Tools is missing, downloading..."
+	git clone --progress $cctools_repo $PWD/source/chromecast-tools/
+	gcc $PWD/source/chromecast-tools/cc-mangle-bootimg.c -o $PWD/source/chromecast-tools/cc-mangle-bootimg
+	chmod +x $PWD/source/chromecast-tools/*
+	PATH="$PWD/source/chromecast-tools:$PATH"
 fi
 
 # Build kernel
 build_kernel $kernel_dir
 
 # Create a kernel package
-create_kernel_pkg $kernel_dir
+move_kernel $kernel_dir
 
 # Will add the fun parts of building a flashable image later
 # Need to have a way to pull down a initramfs to modify and all first
