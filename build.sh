@@ -58,9 +58,15 @@ function move_kernel(){
     done
 }
 
+# LZOP package check
+if [ ! -z "$(which lzop)" ] ; then
+	echo "lzop is not installed. Install it with sudo apt-get install lzop. Terminating..."
+	exit 1
+fi
+
 # Kernel Src DL
 if [ ! -d "$PWD/$kernel_dir" ]; then
-	echo "kernel Directory $kernel_dir does not exist, downloading..."
+	echo "kernel Directory $kernel_dir does not exist, Downloading..."
 	mkdir -p $PWD/$kernel_dir
 	git clone --progress $kernel_repo $PWD/$kernel_dir
 fi
@@ -71,7 +77,7 @@ if [ -d "$PWD/source/chromecast-mirrored-source/" ] || [ ! -z "$(which arm-unkno
 		PATH="$PWD/source/chromecast-mirrored-source/toolchain/arm-unknown-linux-gnueabi-4.5.3-glibc/bin:$PATH"
 	fi
 else
-	echo "Chromecast toolchain is missing, downloading..."
+	echo "Chromecast toolchain is missing, Downloading..."
 	git clone --progress $toolchain_repo $PWD/source/chromecast-mirrored-source/
 	PATH="$PWD/source/chromecast-mirrored-source/toolchain/arm-unknown-linux-gnueabi-4.5.3-glibc/bin:$PATH"
 fi
@@ -82,7 +88,7 @@ if [ -d "$PWD/source/chromecast-tools" ] || [ ! -z "$(which cc-make-bootimg)" ] 
 		PATH="$PWD/source/chromecast-tools:$PATH"
 	fi
 else
-	echo "Chromecast-Tools is missing, downloading..."
+	echo "Chromecast-Tools is missing, Downloading..."
 	git clone --progress $cctools_repo $PWD/source/chromecast-tools/
 	gcc $PWD/source/chromecast-tools/cc-mangle-bootimg.c -o $PWD/source/chromecast-tools/cc-mangle-bootimg
 	chmod +x $PWD/source/chromecast-tools/*
